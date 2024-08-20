@@ -11,15 +11,19 @@ import copy
 from collections import MutableMapping as Map
 
 #Write vmd file (required for a3da)
-exportVmd = False
+exportVmd = True
 pmxScale = 12.5
 
 #Options
 make30 = False #Convert the 60fps animation to 30fps
 vc2 = False #Use vertex colour 2 instead of 1 (bin format only)
 h2v = True #Convert horizontal FOV to vertical
-printMatInfo = False #Print extra material info
-debug = False #Print debug log
+printMatInfo = True #Print extra material info
+debug = True #Print debug log
+
+#Indicate texture format for SF.
+ImageFormat = ".png"
+FolderRoute = "MAP(s)/"
 
 def registerNoesisTypes():
     handle = noesis.register("Fates/Grand Order Model", ".bin")
@@ -1832,10 +1836,10 @@ class Object:
             matBlend.append(blend)
             matTexType.append(texType)
         blendFlags = bs.readUInt()
-        diffColour = [bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat()]
-        ambiColour = [bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat()]
-        specColour = [bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat()]
-        emiColour = [bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat()]
+        diffColour = (bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat())
+        ambiColour = (bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat())
+        specColour = (bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat())
+        emiColour = (bs.readFloat(), bs.readFloat(), bs.readFloat(),bs.readFloat())
         shininess = bs.readFloat()
         intensity = bs.readFloat()
         bs.seek(0x10, NOESEEK_REL)
@@ -1871,6 +1875,132 @@ class Object:
                     print("Emissive Colour = " + str(emiColour[:3]))
                 print()
         self.matList.append(material)
+        
+        #ShaderFarc FX
+        
+        fileName = rapi.getExtensionlessName(rapi.getLocalFileName(rapi.getLastCheckedName()))
+        outputDir = rapi.getDirForFilePath(rapi.getOutputName())
+        shaderDir = os.path.join(outputDir, "Shader")
+        if not os.path.exists(shaderDir):
+            os.makedirs(shaderDir)
+
+        writeName = os.path.join(shaderDir, matName + ".fx")
+        f = open(writeName, "wb")
+        shader_map = {
+            "ITEM": 0,
+            "SKIN": 1,
+            "CLOTH": 2,
+            "TIGHTS": 3,
+            "HAIR": 4,
+            "EYEBALL": 5
+        }
+        shader_num = shader_map.get(shaderName, -1)
+        if shader_num != -1:
+            f.write(("#define SHADER_TYPE " + str(shader_num) + "\n").encode("UTF-8"))
+        else:
+            f.write(("#define SHADER_TYPE 0\n").encode("UTF-8"))
+        f.write(("// 0 = ITEM\n").encode("UTF-8"))
+        f.write(("// 1 = SKIN\n").encode("UTF-8"))
+        f.write(("// 2 = CLOTH\n").encode("UTF-8"))
+        f.write(("// 3 = TIGHTS\n").encode("UTF-8"))
+        f.write(("// 4 = HAIR\n").encode("UTF-8"))
+        f.write(("// 5 = EYEBALL\n").encode("UTF-8"))
+        f.write(("\n").encode("UTF-8"))
+        #f.write(("// Stage / A3DA :\n").encode("UTF-8"))
+        
+        f.write(("// Texture Maps :\n//==================================================//\n").encode("UTF-8"))
+        for i in range(8):
+            try:
+                if i == 0 and matTexType[i] == 0x01:
+                    f.write(("").encode("UTF-8"))
+                elif i == 1 and matTexType[i] == 0x01 and matBlend[i] == 6:
+                    f.write(("#define _Mask " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                elif matTexType[i] == 0x02:
+                    f.write(("#define _Normal " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                elif matTexType[i] == 0x03:
+                    f.write(("#define _Specular " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                elif i == 5 and matTex[i] != 0xFFFFFFFF and matTex[i] != 0x5A009B23:
+                    f.write(("#define _Env_Map " + '"' + FolderRoute + self.texHashDict[matTex[i]] + '.dds"\n').encode("UTF-8"))
+                elif matTexType[i] == 0x06:
+                    f.write(("// - - - - - - - - - - - - - - - - - - - -\n" + "#define _Translucency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                elif matTexType[i] == 0x07:
+                    f.write(("#define _Transparency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+            except:
+                pass
+        f.write(("\n").encode("UTF-8"))
+        
+        f.write(("bool PMX_Color = 0;\n//====== General: ======//\n").encode("UTF-8"))
+        f.write(("#define Diffuse float4" + str(diffColour) + "\n").encode("UTF-8"))                
+        f.write(("#define Ambient float4" + str(ambiColour) + "\n").encode("UTF-8"))
+        f.write(("#define Specular float4" + str(specColour) + "\n").encode("UTF-8"))
+        f.write(("#define Emission float4" + str(emiColour) + "\n").encode("UTF-8"))
+        f.write(("#define Shininess " + str(shininess) + "\n").encode("UTF-8"))
+        f.write(("#define Intensity " + str(intensity) + "\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Bump_depth " + str(bumpDepth) + "\n").encode("UTF-8"))
+        f.write(("\n").encode("UTF-8"))
+        
+        f.write(("//====== Flags: ======//\n").encode("UTF-8"))
+        f.write(("#define Normal " + str((flags >> 8) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define SpecularMap " + str((flags >> 7) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Environment " + str((flags >> 10) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Transparency " + str((flags >> 6) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Translucency " + str((flags >> 13) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define OverrideIBL " + str((flags >> 15) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define NormalAlt " + str((flags >> 9) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Color " + str((flags >> 0) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorAlpha " + str((flags >> 1) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorL1 " + str((flags >> 2) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorL1Alpha " + str((flags >> 3) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorL2 " + str((flags >> 4) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorL2Alpha " + str((flags >> 5) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorL3 " + str((flags >> 11) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define ColorL3Alpha " + str((flags >> 12) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("\n").encode("UTF-8"))
+        
+        f.write(("//====== Shader Flags: ======//\n").encode("UTF-8"))
+        f.write(("#define Vertex_translation " + str(shaderFlags & 0x03) + "\n").encode("UTF-8"))
+        f.write(("// 0 = Default;\n// 1 = Envelope;\n// 2 = Morphing;\n// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Color_source " + str((shaderFlags >> 2) & 0x03) + "\n").encode("UTF-8"))
+        f.write(("// 0 = Material Color;\n// 1 = Vertex Color;\n// 2 = Vertex Morph;\n// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Lambert_Shading " + str((shaderFlags >> 4) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Phong_Shading " + str((shaderFlags >> 5) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Per_Pixel_Shading " + str((shaderFlags >> 6) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Double_Shading " + str((shaderFlags >> 7) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Bump_map " + str((shaderFlags >> 8) & 0x03) + "\n").encode("UTF-8"))
+        f.write(("// 0 = None;\n// 1 = Dot;\n// 2 = Env;\n// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Fresnel " + str((shaderFlags >> 10) & 0x0F) + "\n").encode("UTF-8"))
+        f.write(("#define Line_light " + str((shaderFlags >> 14) & 0x0F) + "\n").encode("UTF-8"))
+        f.write(("#define Receive_shadow " + str((shaderFlags >> 18) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Cast_shadow " + str((shaderFlags >> 19) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Specular_quality " + str((shaderFlags >> 20) & 0x01) + "   // Low - 0 / High - 1\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Aniso_Direction " + str((shaderFlags >> 21) & 0x07) + "\n").encode("UTF-8"))
+        f.write(("// 0 = Normal;\n// 1 = U;\n// 2 = V;\n// 3 = Radial;\n").encode("UTF-8"))
+        f.write(("\n").encode("UTF-8"))
+        
+        f.write(("//====== Blend Flags: ======//\n").encode("UTF-8"))
+        f.write(("#define Alpha_texture " + str(blendFlags & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Material_texture " + str((blendFlags >> 1) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Punch_through " + str((blendFlags >> 2) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Double_sided " + str((blendFlags >> 3) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("#define Normal_direction " + str((blendFlags >> 4) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Src_blend " + str((blendFlags >> 5) & 0x0F) + "\n").encode("UTF-8"))
+        f.write(("#define Dst_blend " + str((blendFlags >> 9) & 0x0F) + "\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("// 0 = ZERO;\n// 1 = ONE;\n// 2 = SRCCOLOR;\n// 3 = INVSRCCOLOR;\n// 4 = SRCALPHA;\n// 5 = INVSRCALPHA;\n// 6 = DESTALPHA;\n// 7 = INVDESTALPHA;\n// 8 = DESTCOLOR;\n// 9 = INVDESTCOLOR;\n// 10 = SRCALPHASAT;\n").encode("UTF-8"))
+        f.write(("// - - - - - - - - - - -\n").encode("UTF-8"))
+        f.write(("#define Blend_operation " + str((blendFlags >> 13) & 0x07) + "\n").encode("UTF-8"))
+        f.write(("#define ZBias " + str((blendFlags >> 16) & 0x0F) + "\n").encode("UTF-8"))
+        f.write(("#define No_fog " + str((blendFlags >> 20) & 0x01) + "\n").encode("UTF-8"))
+        f.write(("\n").encode("UTF-8"))
+        
+        f.write(('#include "- Settings.fxsub"\n').encode("UTF-8"))
+        f.write(('#include "- Header.fxsub"\n').encode("UTF-8"))
+        f.close()
     
     def readMatTex(self, bs):
         flags = bs.readUInt()

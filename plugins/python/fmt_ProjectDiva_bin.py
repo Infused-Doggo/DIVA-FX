@@ -1892,7 +1892,13 @@ class Object:
             "CLOTH": 2,
             "TIGHTS": 3,
             "HAIR": 4,
-            "EYEBALL": 5
+            "EYEBALL": 5,
+            "BLINN": 6,
+            "STAGE": 7,
+            "FLOOR": 8,
+            "WATER01": 9,
+            "PUDDLE": 10,
+            "SKY": 11
         }
         shader_num = shader_map.get(shaderName, -1)
         if shader_num != -1:
@@ -1905,15 +1911,17 @@ class Object:
         f.write(("// 3 = TIGHTS\n").encode("UTF-8"))
         f.write(("// 4 = HAIR\n").encode("UTF-8"))
         f.write(("// 5 = EYEBALL\n").encode("UTF-8"))
+        if shader_num >= 5:
+            f.write(("// Actual Shader: " + shaderName + "\n").encode("UTF-8"))
         f.write(("\n").encode("UTF-8"))
         #f.write(("// Stage / A3DA :\n").encode("UTF-8"))
         
         f.write(("// Texture Maps :\n//==================================================//\n").encode("UTF-8"))
         for i in range(8):
             try:
-                if i == 0 and matTexType[i] == 0x01:
-                    f.write(("").encode("UTF-8"))
-                elif i == 1 and matTexType[i] == 0x01 and matBlend[i] == 6:
+                if i == 0 and matTexType[i] == 0x01 and shader_num >= 5:
+                    f.write(("#define _Diffuse " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                elif i == 1 and matTexType[i] == 0x01 and matBlend[i] >= 1:
                     f.write(("#define _Mask " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
                 elif matTexType[i] == 0x02:
                     f.write(("#define _Normal " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))

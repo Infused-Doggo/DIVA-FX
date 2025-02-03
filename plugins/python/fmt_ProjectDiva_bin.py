@@ -1884,57 +1884,114 @@ class Object:
         if not os.path.exists(shaderDir):
             os.makedirs(shaderDir)
 
-        writeName = os.path.join(shaderDir, matName + ".fx")
-        f = open(writeName, "wb")
-        shader_map = {
-            "ITEM": 0,
-            "SKIN": 1,
-            "CLOTH": 2,
-            "TIGHTS": 3,
-            "HAIR": 4,
-            "EYEBALL": 5,
-            "BLINN": 6,
-            "STAGE": 7,
-            "FLOOR": 8,
-            "WATER01": 9,
-            "PUDDLE": 10,
-            "SKY": 11
-        }
-        shader_num = shader_map.get(shaderName, -1)
-        if shader_num != -1:
-            f.write(("#define SHADER_TYPE " + str(shader_num) + "\n").encode("UTF-8"))
-        else:
-            f.write(("#define SHADER_TYPE 0\n").encode("UTF-8"))
-        f.write(("// 0 = ITEM\n").encode("UTF-8"))
-        f.write(("// 1 = SKIN\n").encode("UTF-8"))
-        f.write(("// 2 = CLOTH\n").encode("UTF-8"))
-        f.write(("// 3 = TIGHTS\n").encode("UTF-8"))
-        f.write(("// 4 = HAIR\n").encode("UTF-8"))
-        f.write(("// 5 = EYEBALL\n").encode("UTF-8"))
-        if shader_num >= 5:
-            f.write(("// Actual Shader: " + shaderName + "\n").encode("UTF-8"))
-        f.write(("\n").encode("UTF-8"))
-        #f.write(("// Stage / A3DA :\n").encode("UTF-8"))
         
-        f.write(("// Texture Maps :\n//==================================================//\n").encode("UTF-8"))
-        for i in range(8):
-            try:
-                if i == 0 and matTexType[i] == 0x01 and shader_num >= 5:
-                    f.write(("#define _Diffuse " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
-                elif i == 1 and matTexType[i] == 0x01 and matBlend[i] >= 1:
-                    f.write(("#define _Mask " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
-                elif matTexType[i] == 0x02:
-                    f.write(("#define _Normal " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
-                elif matTexType[i] == 0x03:
-                    f.write(("#define _Specular " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
-                elif i == 5 and matTex[i] != 0xFFFFFFFF and matTex[i] != 0x5A009B23:
-                    f.write(("#define _Env_Map " + '"' + FolderRoute + self.texHashDict[matTex[i]] + '.dds"\n').encode("UTF-8"))
-                elif matTexType[i] == 0x06:
-                    f.write(("// - - - - - - - - - - - - - - - - - - - -\n" + "#define _Translucency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
-                elif matTexType[i] == 0x07:
-                    f.write(("#define _Transparency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
-            except:
-                pass
+        
+        fileExt = rapi.getLocalFileName(rapi.getLastCheckedName())[-3:]
+        if fileExt == "osd":
+            writeName = os.path.join(shaderDir, matName + ".fx")
+            f = open(writeName, "wb")
+            shader_map = {
+                "SKIN_TH": 0,
+                "OBJ_TH": 1,
+                "HAIR_TH": 2,
+                "EYE_TH": 3,
+            }
+            shader_num = shader_map.get(shaderName, -1)
+            if shader_num != -1:
+                f.write(("#define SHADER_TYPE " + str(shader_num) + "\n").encode("UTF-8"))
+            else:
+                f.write(("#define SHADER_TYPE 0\n").encode("UTF-8"))
+            f.write(("// 0 = SKIN_TH\n").encode("UTF-8"))
+            f.write(("// 1 = OBJ_TH\n").encode("UTF-8"))
+            f.write(("// 2 = HAIR_TH\n").encode("UTF-8"))
+            f.write(("// 3 = EYE_TH\n").encode("UTF-8"))
+            f.write(("\n").encode("UTF-8"))
+            f.write(("// Texture Maps :\n//==================================================//\n").encode("UTF-8"))
+            for i in range(100):
+                try:
+                    if matTexType[i] == 0x02:
+                        f.write(("#define _Normal " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x03:
+                        f.write(("#define _Mask " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x04:
+                        f.write(("#define _Emission " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x05:
+                        f.write(("#define _Reflection " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x06:
+                        f.write(("#define _Transparency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x08:
+                        f.write(("#define _Diffuse2 " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x09:
+                        f.write(("#define _Normal2 " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x10:
+                        f.write(("#define _Mask2 " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x11:
+                        f.write(("#define _Emission2 " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x0A:
+                        f.write(("#define _Mask2 " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x0B:
+                        f.write(("#define _Emission2 " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x12:
+                        f.write(("#define _LightMap " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x0C:
+                        f.write(("#define _LightMap " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x07:
+                        f.write(("#define _EnvMap " + '"' + FolderRoute + self.texHashDict[matTex[i]] + '.dds"\n').encode("UTF-8"))
+                except:
+                    pass
+        else:
+            writeName = os.path.join(shaderDir, matName + ".fx")
+            f = open(writeName, "wb")
+            shader_map = {
+                "ITEM": 0,
+                "SKIN": 1,
+                "CLOTH": 2,
+                "TIGHTS": 3,
+                "HAIR": 4,
+                "EYEBALL": 5,
+                "BLINN": 6,
+                "STAGE": 7,
+                "FLOOR": 8,
+                "WATER01": 9,
+                "PUDDLE": 10,
+                "SKY": 11
+            }
+            shader_num = shader_map.get(shaderName, -1)
+            if shader_num != -1:
+                f.write(("#define SHADER_TYPE " + str(shader_num) + "\n").encode("UTF-8"))
+            else:
+                f.write(("#define SHADER_TYPE 0\n").encode("UTF-8"))
+            f.write(("// 0 = ITEM\n").encode("UTF-8"))
+            f.write(("// 1 = SKIN\n").encode("UTF-8"))
+            f.write(("// 2 = CLOTH\n").encode("UTF-8"))
+            f.write(("// 3 = TIGHTS\n").encode("UTF-8"))
+            f.write(("// 4 = HAIR\n").encode("UTF-8"))
+            f.write(("// 5 = EYEBALL\n").encode("UTF-8"))
+            if shader_num >= 5:
+                f.write(("// Actual Shader: " + shaderName + "\n").encode("UTF-8"))
+            f.write(("\n").encode("UTF-8"))
+            #f.write(("// Stage / A3DA :\n").encode("UTF-8"))
+        
+            f.write(("// Texture Maps :\n//==================================================//\n").encode("UTF-8"))
+            for i in range(8):
+                try:
+                    if i == 0 and matTexType[i] == 0x01 and shader_num >= 5:
+                        f.write(("#define _Diffuse " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif i == 1 and matTexType[i] == 0x01 and matBlend[i] >= 1:
+                        f.write(("#define _Mask " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x02:
+                        f.write(("#define _Normal " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x03:
+                        f.write(("#define _Specular " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif i == 5 and matTex[i] != 0xFFFFFFFF and matTex[i] != 0x5A009B23:
+                        f.write(("#define _Env_Map " + '"' + FolderRoute + self.texHashDict[matTex[i]] + '.dds"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x06:
+                        f.write(("// - - - - - - - - - - - - - - - - - - - -\n" + "#define _Translucency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                    elif matTexType[i] == 0x07:
+                        f.write(("#define _Transparency " + '"' + FolderRoute + self.texHashDict[matTex[i]] + ImageFormat + '"\n').encode("UTF-8"))
+                except:
+                    pass
+
         f.write(("\n").encode("UTF-8"))
         
         f.write(("bool PMX_Color = 0;\n//====== General: ======//\n").encode("UTF-8"))
